@@ -24,6 +24,10 @@ GitHub Actions runs package consistency and the Node suite on macOS/Linux with
 Node.js 20/22. See the run associated with the source commit for hosted results;
 local results do not imply hosted CI passed.
 
+The descendant-cleanup check waits for the OS process to stop executing; a
+terminated Linux zombie waiting for its adopter to reap it counts as stopped.
+It does not require immediate PID disappearance after sending a signal.
+
 Unverified: Windows (unsupported), native calls on Linux, every third-party
 provider configuration, subscription-specific limits, and arbitrary global hooks.
 Market review is a separate service decision; this document does not claim

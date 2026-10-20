@@ -4,6 +4,7 @@ import { mkdtemp, rm, chmod, mkdir, symlink, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { Jobs } from '../src/jobs.mjs';
 import { BACKENDS, configuration, invocation } from '../src/backends.mjs';
 
@@ -107,6 +108,17 @@ test('shutdown kills a native descendant process', async t => {
   }
   assert.ok(pid);
   await jobs.dispose();
-  assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+  let state;
+  for (let n = 0; n < 100; n++) {
+    try {
+      state = execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    } catch (error) {
+      if (error.status !== 1) throw error;
+      state = '';
+    }
+    if (!state || state.startsWith('Z')) break;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.ok(!state || state.startsWith('Z'), `Descendant is still executing: ${state}`);
   await assert.rejects(jobs.call({ action: 'start', task: 'hi' }), /extension_stopping/);
 });
