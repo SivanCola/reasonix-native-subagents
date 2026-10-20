@@ -1,0 +1,59 @@
+{
+  "apiVersion": "reasonix.io/plugin/v2",
+  "name": "codex-subagent",
+  "version": "0.1.0",
+  "description": "Delegate a self-contained task to native Codex, using its login and settings. Requires Node.js 20+ and the native CLI.",
+  "contributes": {
+    "prompts": [
+      "prompts"
+    ]
+  },
+  "runtime": {
+    "command": "${REASONIX_PLUGIN_ROOT}/runtime/main.mjs",
+    "capabilities": [
+      "tools"
+    ],
+    "tools": [
+      {
+        "name": "subagent_codex",
+        "description": "Delegate to native Codex in this workspace. start returns a job_id; ALWAYS poll status with wait_seconds:30 until completed/failed/timed_out/cancelled, then use its answer. cancel stops an unwanted job. One active job per extension. Tasks may edit files subject to user-configured native permissions. A job has fresh context: supply the full task. No automatic completion notification. Never claim success while running.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "status",
+                "cancel"
+              ]
+            },
+            "task": {
+              "type": "string",
+              "description": "Required for start. Self-contained text; maximum 48 KiB."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Optional start-only subdirectory within the session workspace; default workspace root."
+            },
+            "job_id": {
+              "type": "string",
+              "description": "Required for status/cancel; use exactly the returned job_id."
+            },
+            "wait_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 30,
+              "description": "Status-only long poll; use 30 while running."
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        "readOnly": false
+      }
+    ]
+  }
+}
