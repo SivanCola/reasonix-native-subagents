@@ -16,7 +16,7 @@ automatic native CLI downloads are required.
 ## Requirements
 
 - Reasonix Studio with Manifest v2 and runtime tool support.
-- Node.js 20 or later available as `node` in Studio's process PATH.
+- An installed Node.js 20 or later (automatically discovered even with a minimal GUI PATH).
 - The corresponding native CLI installed and authenticated on the machine
   running the Reasonix session. A remote session requires these on its remote
   host, not only on the desktop computer.
@@ -67,8 +67,27 @@ contain a stable code and process exit status when available.
 
 ## Configuration
 
-Set these in the environment inherited by the Reasonix host, then restart it
-or reload the extension with the updated environment. Values are operator
+Save operator settings in `~/.reasonix/native-subagents/config.json`, outside
+both installed packages. Package upgrades and reinstalls never write this file.
+Settings are read on every new job. For example, to retain edit permissions:
+
+```json
+{
+  "schemaVersion": 1,
+  "codex": { "permissionMode": "workspace-write" },
+  "claude": { "permissionMode": "acceptEdits" }
+}
+```
+
+Optional fields inside each backend are `bin`, `model` and `timeoutSeconds`.
+Omit `bin` to automatically find the installed CLI. No credentials belong in
+this file; each CLI continues using its native login and settings.
+Missing configuration keeps the conservative defaults. Malformed/unreadable
+files and unsupported schema versions fail explicitly. Unknown fields are
+preserved because extensions only read the file, never rewrite it.
+
+Existing environment variables take priority over the corresponding saved
+field. These values are operator
 configuration; the model cannot select executables, inject environment
 variables, choose a model, or raise permissions through tool arguments.
 
@@ -79,13 +98,27 @@ variables, choose a model, or raise permissions through tool arguments.
 | Permissions | `REASONIX_CODEX_PERMISSION_MODE` | `REASONIX_CLAUDE_PERMISSION_MODE` |
 | Wall timeout, seconds | `REASONIX_CODEX_TIMEOUT_SECONDS` | `REASONIX_CLAUDE_TIMEOUT_SECONDS` |
 
-Executable overrides must name an executable, not a shell command. Use an
-absolute path when a GUI launch cannot find your CLI.
-On macOS, an app launched from Finder may have a different PATH from your
-terminal. The installed manifest's `runtime.env` can set PATH (including the
-Node binary directory) and the variables above. Reload the runtime after a
-local manifest change. Package updates replace local manifest customizations;
-keep your machine-specific settings separately and reapply them after updating.
+The executable launcher locates Node through PATH or common Homebrew,
+user-local, fnm, nvm, Volta and asdf installations without evaluating shell
+startup files. With no working Node on PATH, it selects the newest compatible
+installed version. CLI discovery searches absolute PATH entries, the user-local
+bin directory, the running Node directory, Homebrew and version-manager locations.
+This follows stable CLI links and detects newly installed Node versions on
+runtime restart. It does not install missing software.
+
+For unusual layouts, place an absolute Node executable path on one line in
+`~/.reasonix/native-subagents/node-path`, or use `REASONIX_SUBAGENT_NODE`
+(environment takes priority). Invalid explicit Node overrides fail instead of
+silently choosing another Node. `REASONIX_SUBAGENT_CONFIG_DIR` can redirect the
+whole configuration directory to another absolute path. Reload the runtime
+after changing Node selection. CLI `bin` overrides name an executable, never
+a shell command; prefer absolute paths.
+
+For upgrades from 0.1.0/0.1.1, move your manifest's permission/model/timeout
+customizations into this file before installing 0.1.2, and omit stale PATH/BIN
+overrides to use discovery. Old versions ignore this external file; downgrading
+requires configuring the old version explicitly. No automatic migration writes
+or deletes user settings. Do not customize the installed manifest anymore.
 The timeout defaults to 600 seconds, with a range of 1–3600 seconds.
 
 - Codex defaults to `read-only` with approvals set to `never`.

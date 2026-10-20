@@ -2,7 +2,8 @@
 
 An independent Reasonix Studio Manifest v2 extension. Delegates a complete
 text task to your installed, authenticated Claude Code CLI in the session workspace.
-Requires Node.js 20+ on the host PATH and the native CLI. macOS/Linux only;
+Requires an installed Node.js 20+ and the native CLI, automatically discovered
+from PATH and common Homebrew, user-local, fnm, nvm, Volta and asdf locations. macOS/Linux only;
 macOS arm64 verified, Windows unsupported.
 
 Install this directory through Studio's standard extension installer or market.
@@ -12,8 +13,13 @@ Cancellation, a 600-second default deadline, fresh sessions and final-answer
 selection are included. No automatic parent wakeup or conversation resume.
 
 Default permission mode: `dontAsk`.
-Set `REASONIX_CLAUDE_PERMISSION_MODE` in the Reasonix host environment
-to enable the desired native permission mode. Optional `REASONIX_CLAUDE_BIN`,
+Store settings outside the package at `~/.reasonix/native-subagents/config.json`:
+`{"schemaVersion":1,"claude":{"permissionMode":"acceptEdits"}}`.
+This example enables edits; omit it to retain the default permissions.
+Package upgrades never write this file. Optional backend fields: `bin`, `model`,
+`timeoutSeconds`. Omit `bin` for automatic discovery.
+Existing `REASONIX_CLAUDE_PERMISSION_MODE` environment settings take priority.
+Optional `REASONIX_CLAUDE_BIN`,
 `REASONIX_CLAUDE_MODEL`, and `REASONIX_CLAUDE_TIMEOUT_SECONDS`
 control the executable, model and deadline. The model cannot change these
 through tool arguments. Native configuration and authentication remain in effect.
@@ -34,6 +40,6 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.1. License: MIT. Maintainer: SivanCola.
+Version: 0.1.2. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)

@@ -1,3 +1,5 @@
+import { settings, executableDirectories, nativeExecutable } from './settings.mjs';
+
 export const BACKENDS = {
   codex: { name: 'codex-subagent', tool: 'subagent_codex', command: 'codex', prefix: 'REASONIX_CODEX' },
   claude: { name: 'claude-code-subagent', tool: 'subagent_claude_code', command: 'claude', prefix: 'REASONIX_CLAUDE' },
@@ -5,17 +7,19 @@ export const BACKENDS = {
 
 export function configuration(backend, env = process.env) {
   const prefix = backend.prefix;
-  const mode = env[`${prefix}_PERMISSION_MODE`] || (backend.command === 'codex' ? 'read-only' : 'dontAsk');
+  const saved = settings(env)[backend.command] || {};
+  const directories = executableDirectories(env);
+  const mode = env[`${prefix}_PERMISSION_MODE`] || saved.permissionMode || (backend.command === 'codex' ? 'read-only' : 'dontAsk');
   const modes = backend.command === 'codex'
     ? ['read-only', 'workspace-write', 'approve-for-me']
     : ['dontAsk', 'acceptEdits', 'plan', 'auto'];
   if (!modes.includes(mode)) throw new Error('invalid_permission_mode');
-  const deadline = Number(env[`${prefix}_TIMEOUT_SECONDS`] || 600);
+  const deadline = Number(env[`${prefix}_TIMEOUT_SECONDS`] || saved.timeoutSeconds || 600);
   if (!Number.isInteger(deadline) || deadline < 1 || deadline > 3600) throw new Error('invalid_timeout');
   return {
-    command: env[`${prefix}_BIN`] || backend.command,
-    model: env[`${prefix}_MODEL`] || undefined,
-    mode, deadline,
+    command: env[`${prefix}_BIN`] || saved.bin || nativeExecutable(backend.command, directories),
+    model: env[`${prefix}_MODEL`] || saved.model || undefined,
+    mode, deadline, path: directories.join(':'),
   };
 }
 

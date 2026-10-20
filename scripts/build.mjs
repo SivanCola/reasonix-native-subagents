@@ -18,11 +18,11 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
   const title = kind === 'codex' ? 'Codex' : 'Claude Code';
   const manifest = {
     apiVersion: 'reasonix.io/plugin/v2',
-    name: backend.name, version: '0.1.1',
+    name: backend.name, version: '0.1.2',
     description: `Delegate a self-contained task to native ${title}, using its login and settings. Requires Node.js 20+ and the native CLI.`,
     contributes: { prompts: ['prompts'] },
     runtime: {
-      command: '${REASONIX_PLUGIN_ROOT}/runtime/main.mjs',
+      command: '${REASONIX_PLUGIN_ROOT}/runtime/launch.sh',
       capabilities: ['tools'],
       tools: [{
         name: backend.tool,
@@ -43,13 +43,16 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
     },
   };
   await emit(resolve(dir, 'reasonix-plugin.json'), JSON.stringify(manifest, null, 2) + '\n');
-  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'process-tree.mjs', 'backends.mjs']) {
+  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'process-tree.mjs', 'backends.mjs', 'settings.mjs', 'launch.sh']) {
     await emit(resolve(dir, 'runtime', file), await readFile(resolve(root, 'src', file), 'utf8'));
   }
   const entry = resolve(dir, 'runtime/main.mjs');
   await emit(entry, `#!/usr/bin/env node\nimport { serve } from './server.mjs';\nserve('${kind}');\n`);
   if (!check) await chmod(entry, 0o755);
   else if (!((await stat(entry)).mode & 0o111)) throw new Error('Entrypoint is not executable');
+  const launcher = resolve(dir, 'runtime/launch.sh');
+  if (!check) await chmod(launcher, 0o755);
+  else if (!((await stat(launcher)).mode & 0o111)) throw new Error('Launcher is not executable');
   await emit(resolve(dir, 'prompts/delegate.md'), `---
 description: Delegate one task to ${title} and collect its result
 argument-hint: <self-contained task>
@@ -70,7 +73,8 @@ $ARGUMENTS
 
 An independent Reasonix Studio Manifest v2 extension. Delegates a complete
 text task to your installed, authenticated ${title} CLI in the session workspace.
-Requires Node.js 20+ on the host PATH and the native CLI. macOS/Linux only;
+Requires an installed Node.js 20+ and the native CLI, automatically discovered
+from PATH and common Homebrew, user-local, fnm, nvm, Volta and asdf locations. macOS/Linux only;
 macOS arm64 verified, Windows unsupported.
 
 Install this directory through Studio's standard extension installer or market.
@@ -80,8 +84,13 @@ Cancellation, a 600-second default deadline, fresh sessions and final-answer
 selection are included. No automatic parent wakeup or conversation resume.
 
 Default permission mode: \`${kind === 'codex' ? 'read-only' : 'dontAsk'}\`.
-Set \`${backend.prefix}_PERMISSION_MODE\` in the Reasonix host environment
-to enable the desired native permission mode. Optional \`${backend.prefix}_BIN\`,
+Store settings outside the package at \`~/.reasonix/native-subagents/config.json\`:
+\`{"schemaVersion":1,"${kind}":{"permissionMode":"${kind === 'codex' ? 'workspace-write' : 'acceptEdits'}"}}\`.
+This example enables edits; omit it to retain the default permissions.
+Package upgrades never write this file. Optional backend fields: \`bin\`, \`model\`,
+\`timeoutSeconds\`. Omit \`bin\` for automatic discovery.
+Existing \`${backend.prefix}_PERMISSION_MODE\` environment settings take priority.
+Optional \`${backend.prefix}_BIN\`,
 \`${backend.prefix}_MODEL\`, and \`${backend.prefix}_TIMEOUT_SECONDS\`
 control the executable, model and deadline. The model cannot change these
 through tool arguments. Native configuration and authentication remain in effect.
@@ -102,7 +111,7 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.1. License: MIT. Maintainer: SivanCola.
+Version: 0.1.2. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)
 `);

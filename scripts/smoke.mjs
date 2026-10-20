@@ -13,7 +13,7 @@ if (!backend) throw new Error('Usage: node scripts/smoke.mjs codex|claude [insta
 const root = await mkdtemp(join(tmpdir(), 'reasonix-native-smoke-'));
 const nonce = randomUUID();
 await writeFile(join(root, 'nonce.txt'), nonce + '\n');
-const child = spawn(process.execPath, [resolve(packagePath || `packages/${backend.name}`, 'runtime/main.mjs')], {
+const child = spawn(resolve(packagePath || `packages/${backend.name}`, 'runtime/launch.sh'), [], {
   cwd: root, env: { ...process.env, [`${backend.prefix}_TIMEOUT_SECONDS`]: '120' },
   stdio: ['pipe', 'pipe', 'pipe'],
 });

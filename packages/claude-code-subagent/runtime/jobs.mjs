@@ -61,7 +61,7 @@ export class Jobs {
       let settled;
       job.done = new Promise(resolve => { settled = resolve; });
       job.settle = settled;
-      const env = { ...this.env };
+      const env = { ...this.env, PATH: config.path };
       delete env.CLAUDECODE;
       delete env.CLAUDE_CODE_ENTRYPOINT;
       job.process = launch(config.command, invocation(this.backend, config), { cwd, env },

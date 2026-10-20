@@ -1,4 +1,4 @@
-# Verification — 0.1.0 baseline and 0.1.1 repair
+# Verification — native subagent extensions
 
 Local evidence collected on 2026-10-20, macOS arm64, Node.js 26.5.1.
 
@@ -52,3 +52,33 @@ verified. Six added regressions cover explicit cancel, timeout and shutdown for
 both backends, with a detached descendant and an unrelated-process canary.
 All 32 local tests pass. Final real-Studio retest evidence is recorded separately
 after installing the repaired packages.
+
+## 0.1.2 durable operator configuration
+
+All 36 local tests pass, including real executable entrypoint startup with a
+minimal GUI PATH and a HOME containing spaces, both backend discoveries, copied
+package replacement preserving external settings, configuration precedence and
+invalid data, numeric Node/CLI version selection and rediscovery after removal.
+The existing cancellation/timeout/shutdown regressions remain green.
+The real Reasonix installer/sidecar host check passes for both packages.
+
+Studio 2.46.0 replaced both installed 0.1.1 packages with generic 0.1.2 packages
+through `install_source` preview/apply with `replace=true`, then reloaded the
+session runtime. Installed manifests contain no local environment overrides.
+Existing edit modes were migrated to the external configuration file before
+replacement; its SHA-256 remained unchanged afterward.
+
+Both actual native CLIs independently repaired new faulty code fixtures through
+Studio, ran their tests using plain `node`, and returned `completed` with their
+final answers. Independent verification passed all eight tests; test file hashes
+were unchanged. No Node/CLI path appeared in the delegated prompts.
+
+| Contract | Previous data | 0.1.2 reader | Previous reader |
+| --- | --- | --- | --- |
+| Environment overrides | Existing variable names | Still supported; override saved fields | Supported |
+| External config schema 1 | Previously absent | Missing file uses defaults; invalid data fails; never rewritten | 0.1.0/0.1.1 ignore it; downgrade needs old explicit configuration |
+| Unknown config fields | User-owned | Preserved byte-for-byte; read-only | File untouched |
+| Package replacement | Manifest-local overrides lost | Config lives outside install targets | External file untouched but unused |
+
+Native end-to-end evidence is macOS-specific. The hosted macOS/Linux Node 20/22
+matrix is reported separately by the source commit's Actions run.
