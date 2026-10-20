@@ -19,8 +19,11 @@ async function setup(t, kind, override = {}) {
   return { root, jobs };
 }
 async function run(jobs, task) {
-  const start = await jobs.call({ action: 'start', task });
-  return jobs.call({ action: 'status', job_id: start.job_id, wait_seconds: 5 });
+  let result = await jobs.call({ action: 'start', task });
+  while (result.status === 'running') {
+    result = await jobs.call({ action: 'status', job_id: result.job_id, wait_seconds: 5 });
+  }
+  return result;
 }
 for (const kind of Object.keys(BACKENDS)) {
   test(`${kind}: final result only, fresh task and literal stdin`, async t => {
@@ -35,6 +38,10 @@ for (const kind of Object.keys(BACKENDS)) {
     assert.equal(result.status, 'failed');
     assert.equal(result.error, 'native_task_failed');
     assert.ok(!JSON.stringify(result).includes('secret-token'));
+  });
+  test(`${kind}: long UTF-8 native records preserve NDJSON boundaries`, async t => {
+    const { jobs } = await setup(t, kind);
+    assert.equal((await run(jobs, 'large-record')).answer, 'large-record');
   });
   for (const [task, error] of [['malformed', 'invalid_output'], ['overflow', 'output_limit'],
     ['empty', 'empty_result'], ['incomplete', 'incomplete_result']]) {

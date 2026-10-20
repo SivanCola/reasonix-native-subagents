@@ -5,7 +5,7 @@ Local evidence collected on 2026-10-20, macOS arm64, Node.js 26.5.1.
 | Boundary | Evidence |
 | --- | --- |
 | Package assembly | `npm run check`: generated runtime/manifests match source; native entrypoints are executable |
-| Automated behavior | 24 Node tests: both result formats, Unicode/literal stdin, private diagnostic exclusion, malformed/oversized output, empty/incomplete answers, concurrent starts, cancellation, wall deadline, missing executable, workspace escape checks, operator-only configuration, descendant cleanup, copied-package protocol handshake |
+| Automated behavior | 26 Node tests: both result formats, Unicode/literal stdin, multi-megabyte UTF-8 records, private diagnostic exclusion, malformed/oversized output, empty/incomplete answers, concurrent starts, cancellation, wall deadline, missing executable, workspace escape checks, operator-only configuration, descendant cleanup, copied-package protocol handshake |
 | Actual Reasonix host | `scripts/host-check.mjs` against `esengine/DeepSeek-Reasonix` studio commit `8bf2ca8bb1fa3164668fe682b102e9c897c320c1`: preview, copied installation, real sidecar handshake, task/result, disable, re-enable, remove — both packages passed |
 | Native Codex | CLI 0.163.0 read a random nonce from a disposable workspace and returned its exact value |
 | Native Claude Code | CLI 2.1.303 read a random nonce from a disposable workspace and returned its exact value |

@@ -7,7 +7,7 @@ export function launch(command, args, options, onEvent, onExit) {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let closed = false;
-  let buffer = '';
+  let fragments = [];
   let bytes = 0;
   let problem;
   const decoder = new StringDecoder('utf8');
@@ -45,22 +45,27 @@ export function launch(command, args, options, onEvent, onExit) {
       stop();
       return;
     }
-    buffer += decoder.write(chunk);
+    const text = decoder.write(chunk);
+    let start = 0;
     let newline;
-    while ((newline = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, newline);
-      buffer = buffer.slice(newline + 1);
+    while ((newline = text.indexOf('\n', start)) >= 0) {
+      fragments.push(text.slice(start, newline));
+      const line = fragments.join('');
+      fragments = [];
+      start = newline + 1;
       if (!line.trim()) continue;
       try { onEvent(JSON.parse(line)); }
       catch { problem = 'invalid_output'; stop(); return; }
     }
+    if (start < text.length) fragments.push(text.slice(start));
   });
   child.once('error', error => {
     problem = error.code === 'ENOENT' ? 'executable_not_found' : 'spawn_failed';
   });
   child.once('close', async (code, signal) => {
     closed = true;
-    buffer += decoder.end();
+    const buffer = fragments.join('') + decoder.end();
+    fragments = [];
     if (!problem && buffer.trim()) {
       try { onEvent(JSON.parse(buffer)); }
       catch { problem = 'invalid_output'; }

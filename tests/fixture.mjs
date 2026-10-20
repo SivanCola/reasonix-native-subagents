@@ -26,6 +26,7 @@ if (task === 'hang') {
   emit(codex ? { type: 'item.completed', item: { type: 'agent_message', text: 'not final yet' } }
     : { type: 'assistant', message: { content: [{ type: 'text', text: 'not final yet' }] } });
 } else {
+  if (task === 'large-record') emit({ type: 'diagnostic', data: '界'.repeat(2 * 1024 * 1024) });
   const text = task === 'inspect' ? JSON.stringify({ cwd: process.cwd(), argv: process.argv.slice(2) }) : task;
   if (codex) {
     emit({ type: 'item.completed', item: { type: 'agent_message', phase: 'commentary', text: 'private thinking' } });
