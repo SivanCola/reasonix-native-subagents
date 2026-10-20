@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import { ProcessTree } from './process-tree.mjs';
 
 export function launch(command, args, options, onEvent, onExit) {
   const child = spawn(command, args, {
@@ -12,28 +13,17 @@ export function launch(command, args, options, onEvent, onExit) {
   let problem;
   const decoder = new StringDecoder('utf8');
   const closedPromise = new Promise(resolve => child.once('close', resolve));
-  const kill = signal => {
-    if (!child.pid) return;
-    try {
-      if (process.platform === 'win32') child.kill(signal);
-      else process.kill(-child.pid, signal);
-    } catch (error) {
-      if (error.code !== 'ESRCH') throw error;
-    }
-  };
-  let escalation;
+  const tree = child.pid ? new ProcessTree(child.pid) : null;
   let cleanup;
+  let cleanupError;
   let cleaned = false;
   const stop = () => {
     if (cleanup) return;
-    kill('SIGTERM');
-    cleanup = new Promise(resolve => {
-      escalation = setTimeout(() => {
-        kill('SIGKILL');
-        cleaned = true;
-        resolve();
-      }, 500);
-    });
+    cleanup = Promise.resolve().then(() => tree?.stop()).catch(error => {
+      cleanupError = error;
+      problem = error.message;
+      child.kill('SIGKILL');
+    }).finally(() => { cleaned = true; });
   };
   child.stdin.on('error', () => {});
   child.stderr.on('data', () => {});
@@ -82,7 +72,7 @@ export function launch(command, args, options, onEvent, onExit) {
       stop();
       if (!closed) await closedPromise;
       await cleanup;
-      clearTimeout(escalation);
+      if (cleanupError) throw cleanupError;
     },
   };
 }

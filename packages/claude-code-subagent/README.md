@@ -34,6 +34,6 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.0. License: MIT. Maintainer: SivanCola.
+Version: 0.1.1. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)

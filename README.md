@@ -22,7 +22,7 @@ automatic native CLI downloads are required.
   host, not only on the desktop computer.
 - macOS or Linux. macOS arm64 is locally verified. Linux is covered by the
   repository CI when green; native model calls on Linux are not locally verified.
-  Windows is not supported in 0.1.0.
+  Windows is not supported in 0.1.x.
 - Native compatibility verified with Codex CLI 0.163.0 and Claude Code 2.1.303.
   Other CLI versions must support the documented flags and JSON events.
 
@@ -60,6 +60,7 @@ Cancel unnecessary work:
 ```
 
 The terminal states are `completed`, `failed`, `timed_out`, and `cancelled`.
+`cancelling` is nonterminal while process cleanup is being verified.
 Only `completed` contains an answer. Partial assistant text, reasoning, raw
 native stderr, and usage events are not returned as answers. Failure responses
 contain a stable code and process exit status when available.
@@ -80,6 +81,11 @@ variables, choose a model, or raise permissions through tool arguments.
 
 Executable overrides must name an executable, not a shell command. Use an
 absolute path when a GUI launch cannot find your CLI.
+On macOS, an app launched from Finder may have a different PATH from your
+terminal. The installed manifest's `runtime.env` can set PATH (including the
+Node binary directory) and the variables above. Reload the runtime after a
+local manifest change. Package updates replace local manifest customizations;
+keep your machine-specific settings separately and reapply them after updating.
 The timeout defaults to 600 seconds, with a range of 1–3600 seconds.
 
 - Codex defaults to `read-only` with approvals set to `never`.
@@ -109,8 +115,12 @@ permission check. Do not assume Reasonix's sandbox confines a full-trust sidecar
 - Jobs are in memory; the newest 16 are retained. Reload, shutdown, disable,
   or removal ends the sidecar and cancels its tasks. IDs from an old runtime
   return `unknown_job`; they cannot resume work.
-- Normal cancellation/shutdown terminates the native process group, escalating
-  after 500 ms. An abrupt OS kill of the sidecar cannot guarantee cleanup.
+- Normal cancellation/shutdown tracks observed native descendants, including
+  separate process groups, and escalates after 500 ms. A terminal cancellation
+  is returned only after those processes stop executing; cleanup failures are
+  explicit failures. The process table is sampled every 200 ms and immediately
+  before termination. This is lifecycle management, not containment of deliberate
+  daemonization that escapes observation. An abrupt OS kill of the sidecar cannot guarantee cleanup.
   Cancellation does not roll back file edits or external actions.
 - Task input is limited to 48 KiB, native stdout to 16 MiB, and the selected
   answer to 128 KiB. Overflow is an explicit failure, never silent success.

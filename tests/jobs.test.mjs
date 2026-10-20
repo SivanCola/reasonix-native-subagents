@@ -4,7 +4,7 @@ import { mkdtemp, rm, chmod, mkdir, symlink, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { Jobs } from '../src/jobs.mjs';
 import { BACKENDS, configuration, invocation } from '../src/backends.mjs';
 
@@ -21,10 +21,31 @@ async function setup(t, kind, override = {}) {
 }
 async function run(jobs, task) {
   let result = await jobs.call({ action: 'start', task });
-  while (result.status === 'running') {
+  while (['running', 'cancelling'].includes(result.status)) {
     result = await jobs.call({ action: 'status', job_id: result.job_id, wait_seconds: 5 });
   }
   return result;
+}
+async function childPID(root) {
+  for (let n = 0; n < 100; n++) {
+    try { return Number(await readFile(join(root, 'descendant.pid'), 'utf8')); }
+    catch { await new Promise(resolve => setTimeout(resolve, 20)); }
+  }
+  throw new Error('Native descendant did not signal readiness');
+}
+async function assertStopped(pid) {
+  let state;
+  for (let n = 0; n < 100; n++) {
+    try {
+      state = execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    } catch (error) {
+      if (error.status !== 1) throw error;
+      state = '';
+    }
+    if (!state || state.startsWith('Z')) return;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.fail(`Descendant is still executing: ${state}`);
 }
 for (const kind of Object.keys(BACKENDS)) {
   test(`${kind}: final result only, fresh task and literal stdin`, async t => {
@@ -69,6 +90,28 @@ for (const kind of Object.keys(BACKENDS)) {
     const { jobs } = await setup(t, kind, { [`${BACKENDS[kind].prefix}_BIN`]: '/missing/native-cli' });
     assert.equal((await run(jobs, 'hi')).error, 'executable_not_found');
   });
+  for (const operation of ['cancel', 'timeout', 'shutdown']) {
+    test(`${kind}: ${operation} terminates descendants in independent process groups`, async t => {
+      const { jobs, root } = await setup(t, kind, {
+        [`${BACKENDS[kind].prefix}_TIMEOUT_SECONDS`]: operation === 'timeout' ? '2' : '10',
+      });
+      const unrelated = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+      t.after(() => unrelated.kill('SIGKILL'));
+      const start = await jobs.call({ action: 'start', task: 'detached-descendant' });
+      const pid = await childPID(root);
+      t.after(() => { try { process.kill(pid, 'SIGKILL'); } catch {} });
+      if (operation === 'cancel') {
+        assert.equal((await jobs.call({ action: 'cancel', job_id: start.job_id })).status, 'cancelled');
+      } else if (operation === 'shutdown') {
+        await jobs.dispose();
+      } else {
+        const end = await jobs.call({ action: 'status', job_id: start.job_id, wait_seconds: 5 });
+        assert.equal(end.status, 'timed_out');
+      }
+      await assertStopped(pid);
+      assert.doesNotThrow(() => process.kill(unrelated.pid, 0));
+    });
+  }
 }
 test('cwd is host-owned, with symlink and traversal escapes rejected', async t => {
   const { jobs, root } = await setup(t, 'codex');
@@ -101,24 +144,9 @@ test('native argv uses no shell and never bypasses permissions', () => {
 test('shutdown kills a native descendant process', async t => {
   const { jobs, root } = await setup(t, 'codex');
   await jobs.call({ action: 'start', task: 'descendant' });
-  let pid;
-  for (let n = 0; n < 100; n++) {
-    try { pid = Number(await readFile(join(root, 'descendant.pid'), 'utf8')); break; }
-    catch { await new Promise(resolve => setTimeout(resolve, 20)); }
-  }
+  const pid = await childPID(root);
   assert.ok(pid);
   await jobs.dispose();
-  let state;
-  for (let n = 0; n < 100; n++) {
-    try {
-      state = execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
-    } catch (error) {
-      if (error.status !== 1) throw error;
-      state = '';
-    }
-    if (!state || state.startsWith('Z')) break;
-    await new Promise(resolve => setTimeout(resolve, 20));
-  }
-  assert.ok(!state || state.startsWith('Z'), `Descendant is still executing: ${state}`);
+  await assertStopped(pid);
   await assert.rejects(jobs.call({ action: 'start', task: 'hi' }), /extension_stopping/);
 });

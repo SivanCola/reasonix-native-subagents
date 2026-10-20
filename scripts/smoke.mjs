@@ -46,7 +46,7 @@ try {
   assert.equal(init.result?.protocolVersion, '2');
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'extension/initialized' }) + '\n');
   let result = await call({ action: 'start', task: 'Read nonce.txt in the current directory. Return only its exact content. Do not modify any file, access the network with tools, or inspect any other files.' });
-  while (result.status === 'running') {
+  while (['running', 'cancelling'].includes(result.status)) {
     console.log(JSON.stringify({ backend: kind, status: result.status }));
     result = await call({ action: 'status', job_id: result.job_id, wait_seconds: 30 });
   }

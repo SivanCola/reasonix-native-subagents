@@ -1,7 +1,7 @@
 {
   "apiVersion": "reasonix.io/plugin/v2",
   "name": "codex-subagent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Delegate a self-contained task to native Codex, using its login and settings. Requires Node.js 20+ and the native CLI.",
   "contributes": {
     "prompts": [

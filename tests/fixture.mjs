@@ -7,9 +7,10 @@ const emit = event => process.stdout.write(JSON.stringify(event) + '\n');
 if (task === 'hang') {
   process.on('SIGTERM', () => {});
   setInterval(() => {}, 1000);
-} else if (task === 'descendant') {
-  const child = spawn(process.execPath, ['-e', 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'], { stdio: 'ignore' });
-  writeFileSync('descendant.pid', String(child.pid));
+} else if (task === 'descendant' || task === 'detached-descendant') {
+  spawn(process.execPath, ['-e', 'process.on("SIGTERM",()=>{});require("node:fs").writeFileSync("descendant.pid",String(process.pid));setInterval(()=>{},1000)'], {
+    stdio: 'ignore', detached: task === 'detached-descendant',
+  });
   setInterval(() => {}, 1000);
 } else if (task === 'malformed') {
   process.stdout.write('not JSON\n');

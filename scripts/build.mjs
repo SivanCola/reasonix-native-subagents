@@ -18,7 +18,7 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
   const title = kind === 'codex' ? 'Codex' : 'Claude Code';
   const manifest = {
     apiVersion: 'reasonix.io/plugin/v2',
-    name: backend.name, version: '0.1.0',
+    name: backend.name, version: '0.1.1',
     description: `Delegate a self-contained task to native ${title}, using its login and settings. Requires Node.js 20+ and the native CLI.`,
     contributes: { prompts: ['prompts'] },
     runtime: {
@@ -43,7 +43,7 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
     },
   };
   await emit(resolve(dir, 'reasonix-plugin.json'), JSON.stringify(manifest, null, 2) + '\n');
-  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'backends.mjs']) {
+  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'process-tree.mjs', 'backends.mjs']) {
     await emit(resolve(dir, 'runtime', file), await readFile(resolve(root, 'src', file), 'utf8'));
   }
   const entry = resolve(dir, 'runtime/main.mjs');
@@ -102,7 +102,7 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.0. License: MIT. Maintainer: SivanCola.
+Version: 0.1.1. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)
 `);

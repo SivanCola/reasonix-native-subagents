@@ -24,12 +24,11 @@ export class Jobs {
     const job = this.jobs.get(args.job_id);
     if (!job) throw new Error('unknown_job');
     if (args.action === 'cancel') {
-      this.cancel(job);
-      await job.process.dispose();
+      await this.cancel(job);
     } else {
       const seconds = args.wait_seconds ?? 0;
       if (!Number.isInteger(seconds) || seconds < 0 || seconds > 30) throw new Error('invalid_wait');
-      if (job.status === 'running' && seconds) {
+      if (['running', 'cancelling'].includes(job.status) && seconds) {
         let timer;
         await Promise.race([job.done, new Promise(resolve => { timer = setTimeout(resolve, seconds * 1000); })]);
         clearTimeout(timer);
@@ -72,7 +71,7 @@ export class Jobs {
           job.settle();
         });
       job.timer = setTimeout(() => {
-        this.cancel(job, 'timed_out');
+        void this.cancel(job, 'timed_out');
       }, config.deadline * 1000);
       job.process.child.stdin.end(args.task);
       for (const [id, old] of this.jobs) {
@@ -86,12 +85,22 @@ export class Jobs {
     }
   }
 
-  cancel(job, status = 'cancelled') {
+  async cancel(job, status = 'cancelled') {
+    if (job.cancellation) return job.cancellation;
     if (job.status !== 'running') return;
-    job.status = status;
+    job.status = 'cancelling';
     clearTimeout(job.timer);
-    job.process.stop();
-    job.settle();
+    job.cancellation = (async () => {
+      try {
+        await job.process.dispose();
+        job.status = status;
+      } catch (error) {
+        job.status = 'failed';
+        job.error = error.message;
+      }
+      job.settle();
+    })();
+    return job.cancellation;
   }
 
   snapshot(job) {
@@ -99,7 +108,7 @@ export class Jobs {
     for (const key of ['answer', 'error', 'exitCode', 'signal']) {
       if (job[key] !== undefined) result[key] = job[key];
     }
-    if (job.status === 'running') result.next = 'Call status with this job_id and wait_seconds: 30 until terminal. Cancel if no longer needed.';
+    if (['running', 'cancelling'].includes(job.status)) result.next = 'Call status with this job_id and wait_seconds: 30 until terminal. Cancel if no longer needed.';
     if (job.status === 'failed') result.hint = 'Check the native CLI login/configuration and executable path. Raw native diagnostics are not forwarded.';
     return result;
   }
@@ -107,7 +116,7 @@ export class Jobs {
   async dispose() {
     this.closed = true;
     await Promise.all([...this.jobs.values()].map(async job => {
-      this.cancel(job);
+      await this.cancel(job);
       await job.process.dispose();
     }));
   }

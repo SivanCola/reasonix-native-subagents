@@ -44,7 +44,7 @@ export function serve(kind) {
         }
         jobs = new Jobs(backend, params.session.workspaceRoot);
         state = 'initializing';
-        send({ id, result: { protocolVersion: '2', name: backend.name, version: '0.1.0',
+        send({ id, result: { protocolVersion: '2', name: backend.name, version: '0.1.1',
           stateSchemaVersion: 0, tools: [backend.tool] } });
         return;
       }
