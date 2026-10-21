@@ -3,8 +3,11 @@
 An independent Reasonix Studio Manifest v2 extension. Delegates a complete
 text task to your installed, authenticated Claude Code CLI in the session workspace.
 Requires an installed Node.js 20+ and the native CLI, automatically discovered
-from PATH and common Homebrew, user-local, fnm, nvm, Volta and asdf locations. macOS/Linux only;
-macOS arm64 verified, Windows unsupported.
+from PATH and common Homebrew, user-local, fnm, nvm, Volta, Scoop and asdf locations.
+Supports macOS/Linux and Windows x64; Windows 11 ARM64 runs the x64 launcher
+under Windows emulation. Windows requires Node 20+ installed in the guest.
+Windows verification uses simulated native CLIs in a real Win11 VM; actual
+Windows account login and model requests have not been verified.
 
 Install this directory through Studio's standard extension installer or market.
 Use `/claude-code-subagent:delegate <task>`, or ask the model to use `subagent_claude_code`.
@@ -40,6 +43,6 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.2. License: MIT. Maintainer: SivanCola.
+Version: 0.1.3. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)

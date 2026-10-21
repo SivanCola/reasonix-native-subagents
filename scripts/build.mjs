@@ -2,9 +2,11 @@ import { mkdir, readFile, writeFile, chmod, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { BACKENDS } from '../src/backends.mjs';
+import { buildWindows } from './build-windows.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const check = process.argv.includes('--check');
+await buildWindows(check);
 async function emit(path, content) {
   if (check) {
     if (await readFile(path, 'utf8') !== content) throw new Error(`Stale package: ${path}`);
@@ -18,11 +20,11 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
   const title = kind === 'codex' ? 'Codex' : 'Claude Code';
   const manifest = {
     apiVersion: 'reasonix.io/plugin/v2',
-    name: backend.name, version: '0.1.2',
+    name: backend.name, version: '0.1.3',
     description: `Delegate a self-contained task to native ${title}, using its login and settings. Requires Node.js 20+ and the native CLI.`,
     contributes: { prompts: ['prompts'] },
     runtime: {
-      command: '${REASONIX_PLUGIN_ROOT}/runtime/launch.sh',
+      command: '${REASONIX_PLUGIN_ROOT}/runtime/launch',
       capabilities: ['tools'],
       tools: [{
         name: backend.tool,
@@ -43,16 +45,20 @@ for (const [kind, backend] of Object.entries(BACKENDS)) {
     },
   };
   await emit(resolve(dir, 'reasonix-plugin.json'), JSON.stringify(manifest, null, 2) + '\n');
-  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'process-tree.mjs', 'backends.mjs', 'settings.mjs', 'launch.sh']) {
+  for (const file of ['server.mjs', 'jobs.mjs', 'process.mjs', 'process-tree.mjs', 'backends.mjs', 'settings.mjs', 'windows.mjs', 'launch.sh']) {
     await emit(resolve(dir, 'runtime', file), await readFile(resolve(root, 'src', file), 'utf8'));
   }
   const entry = resolve(dir, 'runtime/main.mjs');
   await emit(entry, `#!/usr/bin/env node\nimport { serve } from './server.mjs';\nserve('${kind}');\n`);
   if (!check) await chmod(entry, 0o755);
-  else if (!((await stat(entry)).mode & 0o111)) throw new Error('Entrypoint is not executable');
+  else if (process.platform !== 'win32' && !((await stat(entry)).mode & 0o111)) throw new Error('Entrypoint is not executable');
   const launcher = resolve(dir, 'runtime/launch.sh');
   if (!check) await chmod(launcher, 0o755);
-  else if (!((await stat(launcher)).mode & 0o111)) throw new Error('Launcher is not executable');
+  else if (process.platform !== 'win32' && !((await stat(launcher)).mode & 0o111)) throw new Error('Launcher is not executable');
+  const portable = resolve(dir, 'runtime/launch');
+  await emit(portable, await readFile(resolve(root, 'src/launch.sh'), 'utf8'));
+  if (!check) await chmod(portable, 0o755);
+  else if (process.platform !== 'win32' && !((await stat(portable)).mode & 0o111)) throw new Error('Launcher is not executable');
   await emit(resolve(dir, 'prompts/delegate.md'), `---
 description: Delegate one task to ${title} and collect its result
 argument-hint: <self-contained task>
@@ -69,13 +75,17 @@ Task:
 $ARGUMENTS
 `);
   await emit(resolve(dir, 'LICENSE'), await readFile(resolve(root, 'LICENSE'), 'utf8'));
+  for (const file of ['THIRD_PARTY.md', 'WINDOWS_LICENSE.txt']) await emit(resolve(dir, file), await readFile(resolve(root, file), 'utf8'));
   await emit(resolve(dir, 'README.md'), `# ${title} subagent / ${title} 子智能体
 
 An independent Reasonix Studio Manifest v2 extension. Delegates a complete
 text task to your installed, authenticated ${title} CLI in the session workspace.
 Requires an installed Node.js 20+ and the native CLI, automatically discovered
-from PATH and common Homebrew, user-local, fnm, nvm, Volta and asdf locations. macOS/Linux only;
-macOS arm64 verified, Windows unsupported.
+from PATH and common Homebrew, user-local, fnm, nvm, Volta, Scoop and asdf locations.
+Supports macOS/Linux and Windows x64; Windows 11 ARM64 runs the x64 launcher
+under Windows emulation. Windows requires Node 20+ installed in the guest.
+Windows verification uses simulated native CLIs in a real Win11 VM; actual
+Windows account login and model requests have not been verified.
 
 Install this directory through Studio's standard extension installer or market.
 Use \`/${backend.name}:delegate <task>\`, or ask the model to use \`${backend.tool}\`.
@@ -111,7 +121,7 @@ no raw stderr is exposed.
 取消不回滚已修改文件；重载后任务 ID 不可恢复。默认权限如上，由用户配置，
 不能由模型自行放宽。
 
-Version: 0.1.2. License: MIT. Maintainer: SivanCola.
+Version: 0.1.3. License: MIT. Maintainer: SivanCola.
 [Complete configuration, constraints and source](https://github.com/SivanCola/reasonix-native-subagents)
  · [Report an issue](https://github.com/SivanCola/reasonix-native-subagents/issues)
 `);

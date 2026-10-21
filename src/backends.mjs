@@ -1,4 +1,5 @@
 import { settings, executableDirectories, nativeExecutable } from './settings.mjs';
+import { delimiter } from 'node:path';
 
 export const BACKENDS = {
   codex: { name: 'codex-subagent', tool: 'subagent_codex', command: 'codex', prefix: 'REASONIX_CODEX' },
@@ -17,9 +18,9 @@ export function configuration(backend, env = process.env) {
   const deadline = Number(env[`${prefix}_TIMEOUT_SECONDS`] || saved.timeoutSeconds || 600);
   if (!Number.isInteger(deadline) || deadline < 1 || deadline > 3600) throw new Error('invalid_timeout');
   return {
-    command: env[`${prefix}_BIN`] || saved.bin || nativeExecutable(backend.command, directories),
+    command: nativeExecutable(env[`${prefix}_BIN`] || saved.bin || backend.command, directories, env),
     model: env[`${prefix}_MODEL`] || saved.model || undefined,
-    mode, deadline, path: directories.join(':'),
+    mode, deadline, path: directories.join(delimiter),
   };
 }
 

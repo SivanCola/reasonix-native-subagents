@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 const task = readFileSync(0, 'utf8');
 const codex = process.argv.includes('exec');
 const emit = event => process.stdout.write(JSON.stringify(event) + '\n');
@@ -27,6 +27,10 @@ if (task === 'hang') {
   emit(codex ? { type: 'item.completed', item: { type: 'agent_message', text: 'not final yet' } }
     : { type: 'assistant', message: { content: [{ type: 'text', text: 'not final yet' }] } });
 } else {
+  if (task === 'edit-fixture') {
+    writeFileSync('answer.mjs', 'export const answer = 42;\n');
+    execFileSync(process.execPath, ['answer.test.mjs']);
+  }
   if (task === 'large-record') emit({ type: 'diagnostic', data: '界'.repeat(2 * 1024 * 1024) });
   const text = task === 'inspect' ? JSON.stringify({ cwd: process.cwd(), argv: process.argv.slice(2) }) : task;
   if (codex) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -84,6 +85,35 @@ func TestNativeSubagentMarketplacePackages(t *testing.T) {
 			if result["status"] != "completed" || result["answer"] != "installed host result" {
 				t.Fatalf("wrong result: %v", result)
 			}
+			if err := os.WriteFile(filepath.Join(workspace, "answer.mjs"), []byte("export const answer = 0;\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(workspace, "answer.test.mjs"), []byte("import {answer} from './answer.mjs'; if(answer!==42) throw Error('wrong answer');\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			edit := call(map[string]any{"action": "start", "task": "edit-fixture"})
+			result = call(map[string]any{"action": "status", "job_id": edit["job_id"], "wait_seconds": 5})
+			if result["status"] != "completed" {
+				t.Fatalf("edit failed: %v", result)
+			}
+			content, err := os.ReadFile(filepath.Join(workspace, "answer.mjs"))
+			if err != nil || string(content) != "export const answer = 42;\n" {
+				t.Fatalf("edit missing: %s %v", content, err)
+			}
+			hang := call(map[string]any{"action": "start", "task": "detached-descendant"})
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				if _, err := os.Stat(filepath.Join(workspace, "descendant.pid")); err == nil {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("native descendant did not start")
+				}
+				time.Sleep(25 * time.Millisecond)
+			}
+			if result := call(map[string]any{"action": "cancel", "job_id": hang["job_id"]}); result["status"] != "cancelled" {
+				t.Fatalf("cancel failed: %v", result)
+			}
 			if err := client.Close(); err != nil {
 				t.Fatal(err)
 			}
@@ -101,13 +131,31 @@ func TestNativeSubagentMarketplacePackages(t *testing.T) {
 			if len(warnings) != 0 || len(items) != 1 {
 				t.Fatalf("enable did not restore inventory: %v", warnings)
 			}
+			if runtime.GOOS == "windows" {
+				// Windows can signal process termination before image-section
+				// teardown releases the executable. Assert that release explicitly
+				// before testing uninstall, without retrying a destructive operation.
+				binary := filepath.Join(items[0].Package.Root, "runtime", "launch.exe")
+				deadline := time.Now().Add(3 * time.Second)
+				for {
+					file, err := os.OpenFile(binary, os.O_RDWR, 0)
+					if err == nil {
+						file.Close()
+						break
+					}
+					if time.Now().After(deadline) {
+						t.Fatalf("runtime executable remained locked after shutdown: %v", err)
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
 			args = map[string]any{"op": "uninstall", "name": spec.name}
 			install()
 			items, warnings = pluginpkg.LoadInstalled(state)
 			if len(warnings) != 0 || len(items) != 0 {
 				t.Fatalf("remove left inventory: %v", warnings)
 			}
-			t.Log("Preview, copied install, real host handshake, task, result, disable, enable and removal passed")
+			t.Log("Preview, copied install, real host handshake, task, edit, result, cancel, disable, enable and removal passed (simulated native CLI)")
 		})
 	}
 }

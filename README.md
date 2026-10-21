@@ -20,9 +20,11 @@ automatic native CLI downloads are required.
 - The corresponding native CLI installed and authenticated on the machine
   running the Reasonix session. A remote session requires these on its remote
   host, not only on the desktop computer.
-- macOS or Linux. macOS arm64 is locally verified. Linux is covered by the
-  repository CI when green; native model calls on Linux are not locally verified.
-  Windows is not supported in 0.1.x.
+- macOS, Linux or Windows x64. Windows support starts with 0.1.3.
+  Windows 11 ARM64 uses the bundled x64 launcher's OS emulation.
+  macOS arm64 has real-model acceptance; Windows 11 ARM64 has guest-OS tests
+  with simulated Codex/Claude CLIs. Windows login and real-model delegation
+  are not established by these simulated tests; see `VERIFICATION.md`.
 - Native compatibility verified with Codex CLI 0.163.0 and Claude Code 2.1.303.
   Other CLI versions must support the documented flags and JSON events.
 
@@ -121,6 +123,40 @@ requires configuring the old version explicitly. No automatic migration writes
 or deletes user settings. Do not customize the installed manifest anymore.
 The timeout defaults to 600 seconds, with a range of 1–3600 seconds.
 
+### Windows
+
+The same two packages now include a native `runtime/launch.exe`. The manifest
+uses extensionless `runtime/launch`: Reasonix's Windows exec resolution selects
+the `.exe`, while macOS/Linux execute the packaged shell entrypoint.
+No Git Bash, shell profile, machine-specific manifest edit or runtime download
+is required. This is an unsigned community executable built from the included
+Go source; its source and executable SHA-256 are in `runtime/launch.build.json`.
+
+Install Node.js 20+ and authenticate the desired CLI in the same Windows user
+account that runs Studio. Node discovery checks PATH, the standard Node
+installation, fnm, nvm-windows, Volta and Scoop locations. CLI discovery includes
+the Node directory, `%APPDATA%\npm`, `%USERPROFILE%\.local\bin`, version-manager
+directories, and `.exe`/`.cmd`/`.bat`/`.com` suffixes. npm `.cmd` wrappers run
+through the system cmd.exe with escaped arguments; the task remains literal stdin.
+The task cannot set an executable, command line or permission mode.
+
+Settings live at `%USERPROFILE%\.reasonix\native-subagents\config.json` and use
+the same schema and environment overrides as macOS/Linux. An optional `node-path`
+file in that directory must contain an absolute `node.exe` path. No credentials
+are copied between operating systems. Replacing either package preserves this
+directory. Invalid explicit overrides fail rather than silently changing programs.
+
+Each Windows task runs under a dedicated Job Object before any native child
+starts. Cancel and timeout terminate the whole job and verify its active process
+count reaches zero. Closing or killing the runtime closes its outer job, also
+terminating its task trees. Unrelated processes are outside these jobs. This
+is process lifecycle management, not a sandbox or rollback mechanism.
+
+中文：0.1.3 开始支持 Windows，包含原生启动器、Node/CLI 自动发现、npm `.cmd`
+入口及 Job Object 子进程树清理。配置独立于安装目录，保存于
+`%USERPROFILE%\.reasonix\native-subagents\config.json`。Windows 验收使用真实
+Win11 中的模拟 CLI，确实改文件和启动/终止子进程；不代表已经验证真实账号登录或模型请求。
+
 - Codex defaults to `read-only` with approvals set to `never`.
   Other supported modes are `workspace-write` (also no interactive approval)
   and `approve-for-me` (native automatic review). No sandbox bypass mode is exposed.
@@ -148,7 +184,7 @@ permission check. Do not assume Reasonix's sandbox confines a full-trust sidecar
 - Jobs are in memory; the newest 16 are retained. Reload, shutdown, disable,
   or removal ends the sidecar and cancels its tasks. IDs from an old runtime
   return `unknown_job`; they cannot resume work.
-- Normal cancellation/shutdown tracks observed native descendants, including
+- On macOS/Linux, normal cancellation/shutdown tracks observed native descendants, including
   separate process groups, and escalates after 500 ms. A terminal cancellation
   is returned only after those processes stop executing; cleanup failures are
   explicit failures. The process table is sampled every 200 ms and immediately
@@ -213,7 +249,7 @@ Reasonix Studio 的扩展市场独立安装、启停和卸载，无需修改 Stu
 
 需要运行会话的机器安装 Node.js 20+，以及已经登录、可用的对应原生 CLI。
 原生 CLI 的模型、认证、MCP、钩子和项目设置继续有效；用量由该 CLI 配置的
-账户或 API 承担。首版支持 macOS/Linux，macOS arm64 已实测，Windows 暂不支持。
+账户或 API 承担。支持 macOS/Linux，以及 0.1.3 起的 Windows；Windows 验证范围见上文。
 
 可使用 `/codex-subagent:delegate 任务内容` 或
 `/claude-code-subagent:delegate 任务内容`，也可直接要求主智能体调用对应能力。

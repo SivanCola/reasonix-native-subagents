@@ -1,5 +1,51 @@
 # Verification — native subagent extensions
 
+## 0.1.3 Windows support (2026-10-21)
+
+Windows tests execute in a local Windows 11 ARM64 VM with Node 24.19.0 and the
+packaged x64 executable through Windows emulation. All 12 Windows tests pass:
+both backends discover and invoke real `.cmd` wrappers in paths containing
+spaces, Unicode and ampersands; literal stdin and quoted/shell-sensitive model
+arguments round-trip; fixtures edit actual code files and validate the result;
+malformed responses and invalid configuration fail explicitly. Immediate cancel,
+detached descendants, deadline, shutdown and abrupt runtime termination are
+checked against actual OS PIDs, with an unrelated process remaining alive.
+Copied package replacement preserves the external configuration bytes; Node
+startup succeeds with Node absent from PATH through fnm discovery.
+
+The Windows build of Reasonix's actual installer and sidecar client, compiled
+from studio commit `8bf2ca8bb1fa3164668fe682b102e9c897c320c1`, also passes both
+packages: preview, copied install, extensionless manifest resolution to `.exe`,
+handshake, result, code edit, cancel, disable, enable, and removal. These tests
+use an isolated Reasonix state directory, not the user's installed extensions.
+Before removing a Windows executable, the test asserts its image mapping has
+been released (bounded at three seconds); process termination notification alone
+does not guarantee immediate file deletion. No destructive uninstall is retried.
+
+**Evidence boundary:** the Windows CLIs are deterministic simulators, not logged-in
+Codex or Claude Code. They launch real Windows processes, edit real disposable
+files and emit native-format responses, but do not validate authentication,
+provider requests, model quality or native permission behavior. Real-model
+acceptance from prior versions applies to macOS only. No Windows credentials
+were supplied, copied, or published. This boundary is stated in both market
+submissions and package READMEs.
+
+The macOS behavior suite retains all 36 regressions. Hosted CI adds Windows x64
+Node 20/22 alongside macOS/Linux, plus a clean Go 1.26.5 rebuild that must exactly
+match the committed Windows executables. Consult the exact source commit's run
+for terminal hosted results.
+
+Configuration schema 1, environment overrides and tool schemas are unchanged.
+Existing Windows installs can update the same package names. Per-user settings
+remain outside the package. macOS/Linux retain the shell bootstrap; Windows
+uses the bundled native bootstrap and system cmd.exe for batch entrypoints.
+
+中文：Win11 虚拟机内的模拟验收已经覆盖真实文件修改、结果返回和子进程树取消，
+并通过实际 Reasonix Windows 宿主安装调用链。没有验证 Windows 上真实账号登录和
+模型请求；模拟测试不等同于这项证据。配置格式不变，升级不覆盖独立用户配置。
+
+## 0.1.0 baseline (historical)
+
 Local evidence collected on 2026-10-20, macOS arm64, Node.js 26.5.1.
 
 | Boundary | Evidence |

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { realpath, stat } from 'node:fs/promises';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { withPath } from './settings.mjs';
 import { configuration, invocation, resultReader } from './backends.mjs';
 import { launch } from './process.mjs';
 
@@ -45,13 +46,12 @@ export class Jobs {
     }
     if (args.cwd !== undefined && typeof args.cwd !== 'string') throw new Error('invalid_cwd');
     if (this.starting || [...this.jobs.values()].some(job => job.process.active)) throw new Error('task_already_running');
-    if (process.platform === 'win32') throw new Error('windows_not_supported');
     this.starting = true;
     try {
       const root = await realpath(this.workspace);
       const cwd = await realpath(resolve(root, args.cwd || '.'));
       const rel = relative(root, cwd);
-      if (rel === '..' || rel.startsWith('../') || isAbsolute(rel) || !(await stat(cwd)).isDirectory()) {
+      if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel) || !(await stat(cwd)).isDirectory()) {
         throw new Error('cwd_outside_workspace');
       }
       const config = configuration(this.backend, this.env);
@@ -61,7 +61,7 @@ export class Jobs {
       let settled;
       job.done = new Promise(resolve => { settled = resolve; });
       job.settle = settled;
-      const env = { ...this.env, PATH: config.path };
+      const env = withPath(this.env, config.path);
       delete env.CLAUDECODE;
       delete env.CLAUDE_CODE_ENTRYPOINT;
       job.process = launch(config.command, invocation(this.backend, config), { cwd, env },

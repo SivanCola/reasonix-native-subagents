@@ -1,0 +1,5 @@
+{
+  "target": "windows/amd64 (Windows 11 ARM64 uses x64 emulation)",
+  "sourceSha256": "31818473bd9cfd6117d2f59b50f97c656b397fb1b05147537e415ec23de1e5ec",
+  "exeSha256": "be6c91313026507a0af0ce6ee54b70e2f23bdf3e0b02cb2628cdf91c8a7c5b9b"
+}

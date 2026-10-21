@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { ProcessTree } from './process-tree.mjs';
+import { windowsLaunch } from './windows.mjs';
 
 export function launch(command, args, options, onEvent, onExit) {
-  const child = spawn(command, args, {
+  const win = process.platform === 'win32' ? windowsLaunch(command, args, options) : null;
+  const child = win?.child || spawn(command, args, {
     ...options, shell: false, detached: process.platform !== 'win32',
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -13,7 +15,7 @@ export function launch(command, args, options, onEvent, onExit) {
   let problem;
   const decoder = new StringDecoder('utf8');
   const closedPromise = new Promise(resolve => child.once('close', resolve));
-  const tree = child.pid ? new ProcessTree(child.pid) : null;
+  const tree = win?.tree || (child.pid ? new ProcessTree(child.pid) : null);
   let cleanup;
   let cleanupError;
   let cleaned = false;

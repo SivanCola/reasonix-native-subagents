@@ -1,7 +1,7 @@
 {
   "apiVersion": "reasonix.io/plugin/v2",
   "name": "claude-code-subagent",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Delegate a self-contained task to native Claude Code, using its login and settings. Requires Node.js 20+ and the native CLI.",
   "contributes": {
     "prompts": [
@@ -9,7 +9,7 @@
     ]
   },
   "runtime": {
-    "command": "${REASONIX_PLUGIN_ROOT}/runtime/launch.sh",
+    "command": "${REASONIX_PLUGIN_ROOT}/runtime/launch",
     "capabilities": [
       "tools"
     ],

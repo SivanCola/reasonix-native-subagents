@@ -53,7 +53,7 @@ test('launcher persistent Node override and invalid explicit override fail close
     params: { protocolId: 'reasonix.extension.v2', protocolVersion: '2',
       manifest: { tools: ['subagent_codex'] }, session: { workspaceRoot: dir } } }) + '\n';
   const out = execFileSync(launcher, [], { env, input: request, encoding: 'utf8' });
-  assert.equal(JSON.parse(out).result.version, '0.1.2');
+  assert.equal(JSON.parse(out).result.version, '0.1.3');
   const invalid = spawnSync(launcher, [], { env: { ...env, REASONIX_SUBAGENT_NODE: '/missing/node' }, encoding: 'utf8' });
   assert.notEqual(invalid.status, 0);
   assert.match(invalid.stderr, /node_override_requires_node_20/);
